@@ -1,4 +1,4 @@
-from src.artifact_types import Data, Configuration, Report
+from artifact_types import Data, Configuration, Report
 from interpret.blackbox import LimeTabular
 from interpret import show
 

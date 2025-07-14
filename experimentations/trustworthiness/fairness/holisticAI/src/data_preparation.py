@@ -1,3 +1,5 @@
+import gdown
+import pickle
 import pandas as pd
 from artifact_types import Data, Configuration, Report
 from holisticai.bias.mitigation import Reweighing
@@ -10,16 +12,15 @@ Data Preprocessing
 Data Documentation
 """
 
-def load_data(url: str):
-    gdown.download(url, 'data.pickle', quiet=False)
+def load_data(url: str = "", original_filepath: str = "", resulting_filepath: str = ""):
+    gdown.download(url, original_filepath, quiet=False)
     # load data and remove all NaN values
-    with open('data.pickle', 'rb') as handle:
+    with open(original_filepath, 'rb') as handle:
         raw_data = pickle.load(handle)
     data = raw_data.dropna()
     data = data.rename(columns={i:str(i) for i in range(500)})
-    data.to_parquet(filepath)
-
-    return data
+    data.to_parquet(resulting_filepath)
+    return Data(resulting_filepath)
     
 def split_data_from_df(data):
     """Splits a DataFrame into features (X), labels (y), and demographic data (dem)."""

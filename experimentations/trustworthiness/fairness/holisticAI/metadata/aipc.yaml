@@ -11,9 +11,10 @@ operations:
         method_name: load_data
         requirements: requirements.txt
         inputs:
-          data: hiring_data_original
+          - data: hiring_data_original
+          - configuration: output_file        
         outputs:
-          data: hiring_data_processed 
+          - data: hiring_data_processed 
 
   - type: model_training
     id: model_train
@@ -26,11 +27,10 @@ operations:
         method_name: train_model
         requirements: requirements.txt
         inputs:
-          data: hiring_data
-          configuration: 
-            random_seed: 42
+          - data: hiring_data
+          - configuration: model_train_fairness_unaware
         outputs:
-          model: model_fairness_unaware
+          - model: model_fairness_unaware
 
   - type: model_training
     id: model_train_reweighing
@@ -43,16 +43,15 @@ operations:
         method_name: bias_mitigation_in_process_train
         requirements: requirements.txt
         inputs:
-          data: hiring_data
-          configuration: 
-            random_seed: 42
+          - data: hiring_data
+          - configuration: model_train_fairness_aware
         outputs:
-          model: model_fairness_aware
+          - model: model_fairness_aware
 
 artifacts:
   data:
     - name: hiring_data_original
-      url: 1pkGhrZL_cEde9CaLspu-yO9CKxsUd7e5
+      url: https://drive.google.com/uc?id=1pkGhrZL_cEde9CaLspu-yO9CKxsUd7e5
     - name: hiring_data_processed
       filepath: data.parquet
   model:
@@ -60,6 +59,17 @@ artifacts:
       path: model_no_fair.pickle
     - name: model_fairness_aware
       path: model_fair.pickle
+  configuration:
+    - name: output_file
+      original_filepath: data.pickle
+      resulting_filepath: data.parquet
+    - name: model_train_fairness_unaware
+      params:
+        random_seed: 42
+    - name: model_train_fairness_aware
+      params:
+        random_seed: 42
+        threshold: 70
   reports:
     - name: data_report
       filepath: data_report.json    
