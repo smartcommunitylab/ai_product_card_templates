@@ -1,21 +1,72 @@
 stage: Modelling
 operations:
-  - type: model_training  
-    name:
-    inputs:
-      - data:
-      - configurations:
-    outputs:
-      - model:   
-
-    path: modelling.py
-    method_name: train_model
+  - type: data_preprocessing  
+    id: data_preprocessing_step1
+    name: Data preprocessing initial analysis 
     requirement_dimension: quality
+    implementation: 
+      framework: local
+      spec:
+        path: data_preparation.py
+        method_name: load_data
+        requirements: requirements.txt
+        inputs:
+          data: hiring_data_original
+        outputs:
+          data: hiring_data_processed 
+
   - type: model_training
-    path: modelling.py
-    method_name: bias_mitigation_in_process_train 
+    id: model_train
+    name: Model Training without fairness awareness
+    requirement_dimension: quality
+    implementation: 
+      framework: local
+      spec:
+        path: modelling.py
+        method_name: train_model
+        requirements: requirements.txt
+        inputs:
+          data: hiring_data
+          configuration: 
+            random_seed: 42
+        outputs:
+          model: model_fairness_unaware
+
+  - type: model_training
+    id: model_train_reweighing
+    name: Model Training fairness aware
     requirement_dimension: fairness
+    implementation: 
+      framework: local
+      spec:
+        path: modelling.py
+        method_name: bias_mitigation_in_process_train
+        requirements: requirements.txt
+        inputs:
+          data: hiring_data
+          configuration: 
+            random_seed: 42
+        outputs:
+          model: model_fairness_aware
+
 artifacts:
   data:
+    - name: hiring_data_original
+      url: 1pkGhrZL_cEde9CaLspu-yO9CKxsUd7e5
+    - name: hiring_data_processed
+      filepath: data.parquet
+  model:
+    - name: model_fairness_unaware
+      path: model_no_fair.pickle
+    - name: model_fairness_aware
+      path: model_fair.pickle
   reports:
+    - name: data_report
+      filepath: data_report.json    
+    - name: model_report
+      filepath: model_report.json
   documentation:
+    - name: data_card_hiring
+      filepath: cards/data_card.md
+    - name: model_card_hiring
+      filepath: cards/model_card.md
