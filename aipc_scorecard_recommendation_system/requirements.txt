@@ -1,0 +1,12 @@
+langchain
+langchain_community
+langchain_openai
+InstructorEmbedding
+torch
+sentence-transformers
+faiss-gpu
+faiss-cpu
+
+### agent 
+crewai
+crewai_tools
