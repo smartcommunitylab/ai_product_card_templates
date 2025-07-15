@@ -1,8 +1,10 @@
 import gdown
 import pickle
+import numpy as np
 import pandas as pd
 from artifact_types import Data, Configuration, Report
 from holisticai.bias.mitigation import Reweighing
+from sklearn.model_selection import train_test_split
 
 """ 
 Data preparation stage containing 4 operations
@@ -12,17 +14,17 @@ Data Preprocessing
 Data Documentation
 """
 
-def load_data(url: str = "", original_filepath: str = "", resulting_filepath: str = ""):
-    gdown.download(url, original_filepath, quiet=False)
+def load_data(config: Configuration):
+    gdown.download(config.url, config.original_filepath, quiet=False)
     # load data and remove all NaN values
-    with open(original_filepath, 'rb') as handle:
+    with open(config.original_filepath, 'rb') as handle:
         raw_data = pickle.load(handle)
     data = raw_data.dropna()
     data = data.rename(columns={i:str(i) for i in range(500)})
-    data.to_parquet(resulting_filepath)
-    return Data(resulting_filepath)
+    data.to_parquet(config.resulting_filepath)
+    return Data(config.resulting_filepath, data)
     
-def split_data_from_df(data):
+def split_data_from_df(data: Data):
     """Splits a DataFrame into features (X), labels (y), and demographic data (dem)."""
     y = data['Label'].values  # Extract labels
     X = data[[str(i) for i in np.arange(500)]].values  # Extract features
@@ -44,7 +46,7 @@ def resample_equal(df, cat):
     return df_res  # Return resampled DataFrame
 
 
-def bias_mitigation_pre_reweighing(data:Data) -> Data:
+def bias_mitigation_pre_reweighing(data: Data, config: Configuration) -> Data:
     """Reweighing is a pre-processing bias mitigation technique that amends the dataset to achieve statistical parity. 
     This method adjusts the weights of the samples in the dataset to compensate for imbalances between 
     different groups. By applying appropriate weights to each instance, 
@@ -54,6 +56,13 @@ def bias_mitigation_pre_reweighing(data:Data) -> Data:
     # Initialise and fit the Reweighing model to mitigate bias
     rew = Reweighing()
 
+    data = data.get_dataset()
+    # Split the data into training and testing sets (70% training, 30% testing)
+    data_train, data_test = train_test_split(data, test_size=config.test_size, random_state=config.random_state)
+    # Get the feature matrix (X), target labels (y), and demographic data for both sets
+    X_train, y_train, dem_train = split_data_from_df(data_train)
+    X_test, y_test, dem_test = split_data_from_df(data_test)
+    
     # Define the groups (Black and White) in the training data based on the 'Ethnicity' column
     group_a_train = (dem_train['Ethnicity'] == 'Black')  # Group A: Black ethnicity
     group_b_train = (dem_train['Ethnicity'] == 'White')  # Group B: White ethnicity
@@ -65,5 +74,7 @@ def bias_mitigation_pre_reweighing(data:Data) -> Data:
     sample_weights = rew.estimator_params["sample_weight"]
     data_train['sample_weights'] = sample_weights
     
-    return data_train
+    data_train.to_parquet(config.resulting_filepath)
+    return Data(config.resulting_filepath, data_train)
+    
     

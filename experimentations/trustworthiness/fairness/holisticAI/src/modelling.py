@@ -1,6 +1,12 @@
+import holisticai
 from artifact_types import Data, Configuration, Report
+from data_preparation import *
 from interpret.blackbox import LimeTabular
 from interpret import show
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import RidgeClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
+from holisticai.bias.metrics import disparate_impact,statistical_parity, average_odds_diff
 
 
 def train_model(data: Data, 
@@ -8,15 +14,16 @@ def train_model(data: Data,
     """
     
     """
+    data = data.get_dataset()
     # Split the data into training and testing sets (70% training, 30% testing)
-    data_train, data_test = train_test_split(data, test_size=0.3, random_state=4)
+    data_train, data_test = train_test_split(data, test_size=config.test_size, random_state=config.random_state)
 
     # Get the feature matrix (X), target labels (y), and demographic data for both sets
     X_train, y_train, dem_train = split_data_from_df(data_train)
     X_test, y_test, dem_test = split_data_from_df(data_test)
 
     # Define the model (RidgeClassifier) and train it on the training data
-    model = RidgeClassifier(random_state=42)
+    model = RidgeClassifier(random_state=config.random_state)
     model.fit(X_train, y_train)
 
     # Make predictions on the test set
@@ -30,6 +37,7 @@ def train_model(data: Data,
     data_test = data_test.copy()
     data_test['Pred'] = y_pred_test
     #TODO generate report to return from this method 
+    print(acc)
     return acc
 
 ############################################################## Evaluations - Performance metrics - Accuracy
@@ -110,8 +118,17 @@ def calculate_tpr(cms):
 ############################################################## Bias Mitigation techniques
 
 def bias_mitigation_in_process_train(data: Data, config: Configuration):
+    data = data.get_dataset()   
+    # Split the data into training and testing sets (70% training, 30% testing)
+    data_train, data_test = train_test_split(data, test_size=config.test_size, random_state=config.random_state)
+
+    # Get the feature matrix (X), target labels (y), and demographic data for both sets
+    X_train, y_train, dem_train = split_data_from_df(data_train)
+    X_test, y_test, dem_test = split_data_from_df(data_test)
+    
+    sample_weights = data_train["sample_weights"]
     # Train the model using the sample weights calculated through reweighing
-    model = RidgeClassifier(random_state=42)
+    model = RidgeClassifier(random_state=config.random_state)    
     model.fit(X_train, y_train, sample_weight=sample_weights.ravel())  # Fit model with sample weights
 
     y_pred_test = model.predict(X_test)
@@ -122,14 +139,14 @@ def bias_mitigation_in_process_train(data: Data, config: Configuration):
 
     # Get the fairness and accuracy metrics after applying reweighing
     metrics_rw = get_metrics(group_a_test, group_b_test, y_pred_test, y_test)
-    display(metrics_rw)
+    print(metrics_rw)
 
     # Add a 'mitigation' column to both metrics dataframes to label them accordingly
     metrics_orig['mitigation'] = 'None'
     metrics_rw['mitigation'] = 'Reweighing'
 
     metrics = pd.concat([metrics_orig, metrics_rw], axis=0, ignore_index=True)
-    display(metrics)
+    print(metrics)
 
     # Plot the comparison of metrics between the original model and the model with reweighing
     plt.figure(figsize=(10, 6))

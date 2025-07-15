@@ -1,4 +1,6 @@
-stage: Modelling
+domain: PA
+data_modality: tabular
+ai_task: classification
 operations:
   - type: data_preprocessing  
     id: data_preprocessing_step1
@@ -11,10 +13,25 @@ operations:
         method_name: load_data
         requirements: requirements.txt
         inputs:
-          - data: hiring_data_original
           - configuration: output_file        
         outputs:
           - data: hiring_data_processed 
+
+  - type: data_preprocessing  
+    id: data_preprocessing_reweighing
+    name: Data reweighing to mitigate bias 
+    requirement_dimension: fairness
+    implementation: 
+      framework: local
+      spec:
+        path: data_preparation.py
+        method_name: bias_mitigation_pre_reweighing
+        requirements: requirements.txt
+        inputs:
+          - data: hiring_data_processed
+          - configuration: output_reweigh_file        
+        outputs:
+          - data: hiring_data_reweighed 
 
   - type: model_training
     id: model_train
@@ -27,7 +44,7 @@ operations:
         method_name: train_model
         requirements: requirements.txt
         inputs:
-          - data: hiring_data
+          - data: hiring_data_processed
           - configuration: model_train_fairness_unaware
         outputs:
           - model: model_fairness_unaware
@@ -43,17 +60,30 @@ operations:
         method_name: bias_mitigation_in_process_train
         requirements: requirements.txt
         inputs:
-          - data: hiring_data
+          - data: hiring_data_reweighed
           - configuration: model_train_fairness_aware
+          - report: model_acc_fairness_metric_report
         outputs:
           - model: model_fairness_aware
+# TODO model evaluation 
+# TODO model deployment (kserve)
+# TODO model observability (mlflow)
+pipelines:
+  - name: train_fairness_unaware
+    operations:
+      - id: data_preprocessing_step1
+      - id: model_train
+  - name: train_fairness_aware
+    operations:
+      - id: data_preprocessing_step1
+      - id: model_train_reweighing
 
 artifacts:
   data:
-    - name: hiring_data_original
-      url: https://drive.google.com/uc?id=1pkGhrZL_cEde9CaLspu-yO9CKxsUd7e5
     - name: hiring_data_processed
       filepath: data.parquet
+    - name: hiring_data_reweighed
+      filepath: data_reweighed.parquet
   model:
     - name: model_fairness_unaware
       path: model_no_fair.pickle
@@ -61,20 +91,31 @@ artifacts:
       path: model_fair.pickle
   configuration:
     - name: output_file
-      original_filepath: data.pickle
-      resulting_filepath: data.parquet
+      config:
+        url: https://drive.google.com/uc?id=1pkGhrZL_cEde9CaLspu-yO9CKxsUd7e5
+        original_filepath: data.pickle
+        resulting_filepath: data.parquet
+    - name: output_reweigh_file
+      config:
+        resulting_filepath: data_reweighed.parquet
+        test_size: 0.3
+        random_state: 4
     - name: model_train_fairness_unaware
-      params:
-        random_seed: 42
+      config:
+        test_size: 0.3
+        random_state: 4
     - name: model_train_fairness_aware
-      params:
-        random_seed: 42
+      config:
+        test_size: 0.3
+        random_state: 4
         threshold: 70
-  reports:
+  report:
     - name: data_report
       filepath: data_report.json    
     - name: model_report
       filepath: model_report.json
+    - name: model_acc_fairness_metric_report
+      filepath: model_acc_fairness_metric_report.csv
   documentation:
     - name: data_card_hiring
       filepath: cards/data_card.md

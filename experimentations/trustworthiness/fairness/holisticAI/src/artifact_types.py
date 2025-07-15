@@ -1,12 +1,21 @@
 import yaml
+import pandas as pd
 
 class Data():
     """
     The primary artifact fed into the training algorithm to fit the best model
     """
-    def __init__(self, filepath):
+    def __init__(self, filepath=None, dataset=None):
         self.filepath = filepath
+        self.dataset = dataset
+        self.load_dataset()
         
+    def load_dataset(self):
+        self.dataset = pd.read_parquet(self.filepath)
+        return self.dataset
+        
+    def get_dataset(self):
+        return self.dataset
     
 class Report():
     """
@@ -14,8 +23,15 @@ class Report():
     """
     def __init__(self, filepath):
         self.filepath = filepath
+        self.filetype = filepath.split(".")[1]
+        self.load_report()
         
-    
+    def load_report(self):
+        if file_exists(self.filepath):
+            if self.filetype == "csv":
+                return pd.read_csv(self.filepath)
+        return None        
+            
     
 class Model():
     """
@@ -29,8 +45,9 @@ class Configuration():
     """
     Declarative specifications used to orchestrate the execution of individual components or pipelines
     """
-    def __init__(self, filepath):
-        self.filepath = filepath
+    def __init__(self, config: dict):
+        for key, value in config.items():
+            setattr(self, key, value)
     
     def load_config(self):
         with open(self.filepath, "r") as file:
