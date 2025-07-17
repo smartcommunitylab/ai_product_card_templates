@@ -22,5 +22,9 @@ langchain
 langchain_community
 langchain_huggingface
 weaviate
+weaviate-client
 faiss-cpu
 faiss-gpu
+
+# RAG evaluation
+ragas
