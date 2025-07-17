@@ -20,3 +20,7 @@ python-dotenv==1.0.1
 sentence-transformers==2.7.0
 langchain
 langchain_community
+langchain_huggingface
+weaviate
+faiss-cpu
+faiss-gpu
