@@ -1,9 +1,9 @@
 import yaml
-from data_preparation import *
-from modelling import *
+from fairness.holisticAI.src.data_preparation import *
+from fairness.holisticAI.src.modelling import *
 
 def main():
-    with open("metadata/aipc.yaml", "r") as yaml_file:
+    with open("fairness/holisticAI/metadata/aipc.yaml", "r") as yaml_file:
         aipc_configs = yaml.safe_load(yaml_file) 
         # operations
         operations = aipc_configs["operations"]
@@ -14,9 +14,11 @@ def main():
         data_artifacts = artifacts["data"]
         model_artifacts = artifacts["model"]
         configuration_artifacts = artifacts["configuration"]
-        # run operations
-        #run_data_operations(data_operations, data_artifacts, configuration_artifacts)
+        # run data operations
+        run_data_operations(data_operations, data_artifacts, configuration_artifacts)
+        # run modelling operation
         run_modelling_operations(model_operations, model_artifacts, data_artifacts, configuration_artifacts)
+        
         
         
 def run_data_operations(data_operations, data_artifacts, config_artifacts):

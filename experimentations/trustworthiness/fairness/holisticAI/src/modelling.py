@@ -1,6 +1,6 @@
 import holisticai
 from artifact_types import Data, Configuration, Report
-from data_preparation import *
+from fairness.holisticAI.src.data_preparation import *
 from interpret.blackbox import LimeTabular
 from interpret import show
 from sklearn.model_selection import train_test_split
