@@ -3,6 +3,8 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 
+from sklearn.metrics.pairwise import cosine_similarity
+
 class Retriever:
     def __init__(self, model, top_k):
         self.model = model
