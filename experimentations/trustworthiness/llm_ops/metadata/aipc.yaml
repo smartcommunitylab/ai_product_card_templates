@@ -5,7 +5,7 @@ operations:
   - type: data_preprocessing  
     id: data_preprocessing_step1
     name: Data preprocessing initial analysis 
-    requirement_dimension: quality
+    requirement_dimension: baseline
     implementation: 
       framework: local
       spec:
@@ -36,7 +36,7 @@ operations:
   - type: model_training
     id: model_train
     name: Model Training without fairness awareness
-    requirement_dimension: quality
+    requirement_dimension: baseline
     implementation: 
       framework: local
       spec:
@@ -65,18 +65,68 @@ operations:
           - report: model_acc_fairness_metric_report
         outputs:
           - model: model_fairness_aware
-# TODO model evaluation 
-# TODO model deployment (kserve)
-# TODO model observability (mlflow)
-pipelines:
-  - name: train_fairness_unaware
-    operations:
-      - id: data_preprocessing_step1
-      - id: model_train
-  - name: train_fairness_aware
-    operations:
-      - id: data_preprocessing_step1
-      - id: model_train_reweighing
+
+# model evaluation 
+  - type: model_evaluation
+    id: model_evaluate_accuracy
+    name: Model Evaluation quality performance
+    requirement_dimension: baseline
+    implementation: 
+      framework: local
+      spec:
+        path: modelling.py
+        method_name: bias_mitigation_in_process_train
+        requirements: requirements.txt
+        inputs:
+          - 
+        outputs:
+          - e
+
+# model deployment (kserve)
+  - type: model_deployment
+    id: model_deploy
+    name: Model Deployment using kserve
+    requirement_dimension: baseline
+    implementation: 
+      framework: local
+      spec:
+        path: operationalization.py
+        method_name: model_deploy
+        requirements: requirements.txt
+        inputs:
+          - 
+        outputs:
+          - 
+
+# TODO observability 
+  - type: model_monitoring
+    id: model_monitor
+    name: Model Monitoring using mlflow
+    requirement_dimension: baseline
+    implementation: 
+      framework: local
+      spec:
+        path: operationalization.py
+        method_name: model_monitor
+        requirements: requirements.txt
+        inputs:
+          - 
+        outputs:
+          - 
+  - type: system_monitoring
+    id: system_monitor
+    name: System Monitoring using telemetry
+    requirement_dimension: baseline
+    implementation: 
+      framework: local
+      spec:
+        path: operationalization.py
+        method_name: model_monitor
+        requirements: requirements.txt
+        inputs:
+          - 
+        outputs:
+          - 
 
 artifacts:
   data:
