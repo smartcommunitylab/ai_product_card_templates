@@ -14,7 +14,7 @@ def download_model_cards():
     #print(last_date)
 
     for model in models:
-        print(model)
+        #print(model)
         card = hf.hf_hub_download(model.modelId, 'README.md', local_dir=f"model_cards/{model.modelId}") 
     
 
