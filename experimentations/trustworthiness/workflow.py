@@ -15,7 +15,7 @@ def main():
         model_artifacts = artifacts["model"]
         configuration_artifacts = artifacts["configuration"]
         # run data operations
-        run_data_operations(data_operations, data_artifacts, configuration_artifacts)
+        #run_data_operations(data_operations, data_artifacts, configuration_artifacts)
         # run modelling operation
         run_modelling_operations(model_operations, model_artifacts, data_artifacts, configuration_artifacts)
         
@@ -52,6 +52,7 @@ def run_modelling_operations(model_operations, model_artifacts, data_artifacts, 
     for operation in model_operations:
         specs = operation["implementation"]["spec"]
         method_name = specs["method_name"]
+        print(method_name)
         inputs = specs["inputs"]
         outputs = specs["outputs"]
         input_vars = {}

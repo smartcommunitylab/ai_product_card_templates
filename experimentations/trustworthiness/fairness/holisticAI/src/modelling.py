@@ -1,3 +1,5 @@
+from pickle import dump
+
 import holisticai
 from artifact_types import Data, Configuration, Report
 from fairness.holisticAI.src.data_preparation import *
@@ -25,9 +27,19 @@ def train_model(data: Data,
     # Define the model (RidgeClassifier) and train it on the training data
     model = RidgeClassifier(random_state=config.random_state)
     model.fit(X_train, y_train)
+    
+    with open(config.model_filepath, 'wb') as model_file:
+        dump(model, model_file)
 
     # Make predictions on the test set
     y_pred_test = model.predict(X_test)
+    
+    # Define the groupings for fairness analysis (Black and White) in the test set
+    group_a_test = (dem_test['Ethnicity']=='Black')
+    group_b_test = (dem_test['Ethnicity']=='White')
+
+    metrics_rw = get_metrics(group_a_test, group_b_test, y_pred_test, y_test)
+    
 
     # Calculate and print the accuracy of the model on the test set
     acc = accuracy_score(y_test, y_pred_test)
@@ -111,7 +123,7 @@ def calculate_tpr(cms):
     tprs = {g: cm[0, 0] / cm[0, :].sum() for g, cm in cms.items()}  # Calculate TPR
     return tprs  # Return dictionary of TPRs
 
-############################################################## Accuracy and fairness metrics
+############################################################## Accuracy and fairness evaluation metrics
 
 
 
