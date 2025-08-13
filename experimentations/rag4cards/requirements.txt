@@ -30,3 +30,9 @@ faiss-gpu
 
 # RAG evaluation
 ragas
+
+
+# Agentic RAG
+langchain-mcp-adapters==0.1.9
+langgraph==0.6.4
+
