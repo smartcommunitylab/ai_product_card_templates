@@ -1,18 +1,20 @@
 from pickle import dump
 
 import holisticai
-from artifact_types import Data, Configuration, Report
-from fairness.holisticAI.src.data_preparation import *
+from holisticai.bias.metrics import disparate_impact,statistical_parity, average_odds_diff
 from interpret.blackbox import LimeTabular
 from interpret import show
+
+from artifact_types import Data, Configuration, Report
+from fairness.holisticAI.src.utils import *
+from fairness.holisticAI.src.data_preparation import *
+
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import RidgeClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
-from holisticai.bias.metrics import disparate_impact,statistical_parity, average_odds_diff
 
 
-def train_model(data: Data, 
-                config: Configuration):
+def train_model(data: Data, config: Configuration):
     """
     
     """
@@ -29,7 +31,7 @@ def train_model(data: Data,
     model.fit(X_train, y_train)
     
     with open(config.model_filepath, 'wb') as model_file:
-        dump(model, model_file)
+        dump(model, model_file, pickle.HIGHEST_PROTOCOL)
 
     # Make predictions on the test set
     y_pred_test = model.predict(X_test)
@@ -39,6 +41,7 @@ def train_model(data: Data,
     group_b_test = (dem_test['Ethnicity']=='White')
 
     metrics_rw = get_metrics(group_a_test, group_b_test, y_pred_test, y_test)
+    metrics_rw.to_csv("metrics_accuracy.csv")
     
 
     # Calculate and print the accuracy of the model on the test set
@@ -53,17 +56,6 @@ def train_model(data: Data,
     return acc
 
 ############################################################## Evaluations - Performance metrics - Accuracy
-
-# Function to calculate and return model accuracy and fairness metrics for two groups
-def get_metrics(group_a, group_b, y_pred, y_true):
-    """
-    Returns a DataFrame of model accuracy and fairness metrics for two groups.
-    """
-    metrics = [['Model Accuracy', round(accuracy_score(y_true, y_pred), 2), 1]]  # Calculate accuracy
-    metrics += [['Black vs. White Disparate Impact', round(disparate_impact(group_a, group_b, y_pred), 2), 1]]  # Calculate disparate impact
-    metrics += [['Black vs. White Statistical Parity', round(statistical_parity(group_a, group_b, y_pred), 2), 0]]  # Calculate statistical parity
-    metrics += [['Black vs. White Average Odds Difference', round(average_odds_diff(group_a, group_b, y_pred, y_true), 2), 0]]  # Calculate average odds difference
-    return pd.DataFrame(metrics, columns=['Metric', 'Value', 'Reference'])  # Return metrics as DataFrame
 
 def plot_cm(y_true, y_pred, labels=[1, 0], display_labels=[1, 0], ax=None):
     """

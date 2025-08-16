@@ -1,6 +1,12 @@
-from kserve import Model, KFServer
+import requests
+from utils import *
+from artifact_types import Data, Configuration, Report
+
+#from kserve import Model, KFServer
+from kserve import RESTConfig, InferenceRESTClient
 import numpy as np
 import joblib
+import pickle
 
 from sklearn.metrics import accuracy_score, confusion_matrix
 
@@ -10,18 +16,25 @@ from holisticai.bias.mitigation import EqualizedOdds
 
 
 class CustomModel(Model):
-    def __init__(self, name: str, model_dir: str):
+    def __init__(self, name: str, model_path: str):
         super().__init__(name)
-        self.model_dir = model_dir
+        self.model_path = model_path
         self.model = None
+
+    # load joblib model artiact
+    def load_joblib(self):
+        # Load the model from the specified directory
+        self.model = joblib.load(self.model_path)
+        print(f"Model loaded from {self.model_path}")
+        return self
 
     def load(self):
         # Load the model from the specified directory
-        model_path = f"{self.model_dir}/model.joblib"
-        self.model = joblib.load(model_path)
-        print(f"Model loaded from {model_path}")
+        with open(self.model_path, "rb") as model_file:
+            self.model = pickle.load(self.model_path)
+        print(f"Model loaded from {self.model_path}")
         return self
-
+    
     def predict(self, inputs: dict) -> dict:
         # Perform inference
         data = np.array(inputs["instances"])
@@ -29,26 +42,14 @@ class CustomModel(Model):
         return {"predictions": predictions.tolist()}
 
 
-def model_deployment():
-    model_name = "custom-model"
-    model_dir = "/mnt/models"
+def model_deployment(config: Configuration):
+    model_name = config.name
+    model_path = config.path
 
     # Create and start the KFServer
-    model = CustomModel(model_name, model_dir)
+    model = CustomModel(model_name, model_path)
     KFServer(workers=1).start([model])
     
-
-
-# Function to calculate and return model accuracy and fairness metrics for two groups
-def get_metrics(group_a, group_b, y_pred, y_true):
-    """
-    Returns a DataFrame of model accuracy and fairness metrics for two groups.
-    """
-    metrics = [['Model Accuracy', round(accuracy_score(y_true, y_pred), 2), 1]]  # Calculate accuracy
-    metrics += [['Black vs. White Disparate Impact', round(disparate_impact(group_a, group_b, y_pred), 2), 1]]  # Calculate disparate impact
-    metrics += [['Black vs. White Statistical Parity', round(statistical_parity(group_a, group_b, y_pred), 2), 0]]  # Calculate statistical parity
-    metrics += [['Black vs. White Average Odds Difference', round(average_odds_diff(group_a, group_b, y_pred, y_true), 2), 0]]  # Calculate average odds difference
-    return pd.DataFrame(metrics, columns=['Metric', 'Value', 'Reference'])  # Return metrics as DataFrame
 
 
 def post_processing_fairness(prediction):
@@ -136,4 +137,42 @@ def visualise_metrics(metrics):
 # experiments tracking: efficient 
 
 def model_monitoring():
+    """ mlflow """
+    pass
+
+def inference(config: Configuration, data: Data):
+    # data example: [[6.8,  2.8,  4.8,  1.4], [6.0,  3.4,  4.5,  1.6]]
+    config = RESTConfig(protocol="v1", retries=5, timeout=30)
+    client = InferenceRESTClient(config)
+    base_url = config.endpoint
+    data = {"instances": data}
+    model_name = "sklearn-hiring"
+    result = await client.infer(base_url, data, model_name=model_name)
+    print(result)
+
+
+def inference_example(config: Configuration):
+    x_0 = X_test[0:1]
+    inference_request = {
+        "inputs": [
+            {
+            "name": "predict",
+            "shape": x_0.shape,
+            "datatype": "FP32",
+            "data": x_0.tolist()
+            }
+        ]
+    }
+    endpoint = config.endpoint
+    response = requests.post(endpoint, json=inference_request)
+    response.json()
     
+    
+################################################## proxy for inference service
+
+def pre_inference_transformation():
+    pass
+
+
+def post_inference_transformation():
+    pass

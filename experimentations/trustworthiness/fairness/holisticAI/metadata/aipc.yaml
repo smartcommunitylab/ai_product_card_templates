@@ -2,7 +2,9 @@ domain: PA
 data_modality: tabular
 ai_task: classification
 operations:
+####################################################### Data Preparation Stage
   - type: data_preprocessing  
+    stage: data_preparation
     id: data_preprocessing_step1
     name: Data preprocessing initial analysis 
     requirement_dimension: baseline
@@ -18,6 +20,7 @@ operations:
           - data: hiring_data_processed 
 
   - type: data_preprocessing  
+    stage: data_preparation
     id: data_preprocessing_reweighing
     name: Data reweighing to mitigate bias 
     requirement_dimension: fairness
@@ -33,7 +36,9 @@ operations:
         outputs:
           - data: hiring_data_reweighed 
 
+####################################################### Modelling Stage
   - type: model_training
+    stage: modelling
     id: model_train
     name: Model Training without fairness awareness
     requirement_dimension: baseline
@@ -50,6 +55,7 @@ operations:
           - model: model_fairness_unaware
 
   - type: model_training
+    stage: modelling
     id: model_train_reweighing
     name: Model Training fairness aware
     requirement_dimension: fairness
@@ -68,6 +74,7 @@ operations:
 
 # model evaluation 
   - type: model_evaluation
+    stage: modelling
     id: model_evaluate_accuracy
     name: Model Evaluation quality performance
     requirement_dimension: baseline
@@ -80,10 +87,12 @@ operations:
         inputs:
           - 
         outputs:
-          - e
+          - report: model_metrics_report
+####################################################### Operationalization Stage
 
 # model deployment (kserve)
   - type: model_deployment
+    stage: operationalization
     id: model_deploy
     name: Model Deployment using kserve
     requirement_dimension: baseline
@@ -94,12 +103,14 @@ operations:
         method_name: model_deploy
         requirements: requirements.txt
         inputs:
-          - 
+          - model: model_fairness_unaware
+
         outputs:
-          - 
+          - configuration: model_inferenceservice_endpoint
 
 # TODO observability (mlflow, wandb)
   - type: model_monitoring
+    stage: operationalization
     id: model_monitor
     name: Model Monitoring using mlflow
     requirement_dimension: baseline
@@ -116,6 +127,7 @@ operations:
 
 # TODO system monitoring (telemetry, prometheus, grafana)
   - type: system_monitoring
+    stage: operationalization
     id: system_monitor
     name: System Monitoring using telemetry
     requirement_dimension: baseline
@@ -130,6 +142,22 @@ operations:
         outputs:
           - 
 
+# TODO production data monitoring (evidently, alibi-detect)
+  - type: production_data_monitoring
+    stage: operationalization
+    id: production_data_monitor
+    name: Production Data Monitoring using evidently
+    requirement_dimension: baseline
+    implementation: 
+      framework: local
+      spec:
+        path: operationalization.py
+        method_name: production_data_monitor
+        requirements: requirements.txt
+        inputs:
+          - 
+        outputs:
+          - 
 
 artifacts:
   data:
@@ -163,6 +191,8 @@ artifacts:
         test_size: 0.3
         random_state: 4
         threshold: 70
+    - name: model_inferenceservice_endpoint
+      endpoint: "http://localhost:8080/v2/models/hiring-sklearn/versions/v0.1.0/infer"
   report:
     - name: data_report
       filepath: data_report.json    
@@ -175,3 +205,6 @@ artifacts:
       filepath: cards/data_card.md
     - name: model_card_hiring
       filepath: cards/model_card.md
+  function:
+    - name: model_deploy
+      path: fairness/holisticAI/src/operationalization.py

@@ -1,3 +1,7 @@
+ai_stages:
+  - data_preparation
+  - modelling
+  - operationalization
 ai_operations:
 ### Data preparation stage
   - data_profiling

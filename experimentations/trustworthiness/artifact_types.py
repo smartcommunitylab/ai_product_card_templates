@@ -37,8 +37,9 @@ class Model():
     """
     Either a single file or multiple files constituting the model
     """
-    def __init__(self, model_path: str):
+    def __init__(self, model_path: str, model_name: str):
         self.model_path =  model_path
+        self.model_name = model_name
         
     
 class Configuration():
