@@ -18,3 +18,7 @@ pyyaml
 interpret
 aix360
 lime
+
+# For deployment
+kserve
+mlflow

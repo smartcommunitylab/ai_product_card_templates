@@ -11,8 +11,10 @@ from fairness.holisticAI.src.data_preparation import *
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import RidgeClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
 
+import mlflow
+import mlflow.sklearn
 
 def train_model(data: Data, config: Configuration):
     """
@@ -21,39 +23,46 @@ def train_model(data: Data, config: Configuration):
     data = data.get_dataset()
     # Split the data into training and testing sets (70% training, 30% testing)
     data_train, data_test = train_test_split(data, test_size=config.test_size, random_state=config.random_state)
+    train_dataset = mlflow.data.from_pandas(data_train, name="train")
+    test_dataset = mlflow.data.from_pandas(data_test, name="test")
 
     # Get the feature matrix (X), target labels (y), and demographic data for both sets
     X_train, y_train, dem_train = split_data_from_df(data_train)
     X_test, y_test, dem_test = split_data_from_df(data_test)
+    with mlflow.start_run():
+        
+        # Define the model (RidgeClassifier) and train it on the training data
+        model = RidgeClassifier(random_state=config.random_state)
+        model.fit(X_train, y_train)
+        
+        with open(config.model_filepath, 'wb') as model_file:
+            dump(model, model_file, pickle.HIGHEST_PROTOCOL)
 
-    # Define the model (RidgeClassifier) and train it on the training data
-    model = RidgeClassifier(random_state=config.random_state)
-    model.fit(X_train, y_train)
-    
-    with open(config.model_filepath, 'wb') as model_file:
-        dump(model, model_file, pickle.HIGHEST_PROTOCOL)
+        # Make predictions on the test set
+        y_pred_test = model.predict(X_test)
+        
+        # Define the groupings for fairness analysis (Black and White) in the test set
+        group_a_test = (dem_test['Ethnicity']=='Black')
+        group_b_test = (dem_test['Ethnicity']=='White')
 
-    # Make predictions on the test set
-    y_pred_test = model.predict(X_test)
-    
-    # Define the groupings for fairness analysis (Black and White) in the test set
-    group_a_test = (dem_test['Ethnicity']=='Black')
-    group_b_test = (dem_test['Ethnicity']=='White')
+        metrics_rw = get_metrics_classifier(group_a_test, group_b_test, y_pred_test, y_test)
+        metrics_rw.to_csv("metrics_accuracy.csv")   
+        
+        mlflow.log_param("model_type", "RidgeClassifier")
+        model_info = mlflow.sklearn.log_model(sk_model=model, name="RidgeClassifier", input_example=X_train)
+        mlflow.log_metrics(
+            metrics={
+                metric.Metric: metric.Value
+                for metric in metrics_rw.itertuples()
+            },
+            dataset=train_dataset,
+            model_id=model_info.model_id,
+        )
 
-    metrics_rw = get_metrics(group_a_test, group_b_test, y_pred_test, y_test)
-    metrics_rw.to_csv("metrics_accuracy.csv")
-    
-
-    # Calculate and print the accuracy of the model on the test set
-    acc = accuracy_score(y_test, y_pred_test)
-    print("Accuracy = %.2f" % acc)
-
-    # Add the model's predictions to the data_test DataFrame for easier analysis
-    data_test = data_test.copy()
-    data_test['Pred'] = y_pred_test
-    #TODO generate report to return from this method 
-    print(acc)
-    return acc
+        # Add the model's predictions to the data_test DataFrame for easier analysis
+        data_test = data_test.copy()
+        data_test['Pred'] = y_pred_test
+        #TODO generate report to return from this method 
 
 ############################################################## Evaluations - Performance metrics - Accuracy
 
@@ -121,46 +130,54 @@ def calculate_tpr(cms):
 
 ############################################################## Bias Mitigation techniques
 
-def bias_mitigation_in_process_train(data: Data, config: Configuration):
+def bias_mitigation_in_process_train(data: Data, config: Configuration, ):
     data = data.get_dataset()   
     # Split the data into training and testing sets (70% training, 30% testing)
     data_train, data_test = train_test_split(data, test_size=config.test_size, random_state=config.random_state)
+    train_dataset = mlflow.data.from_pandas(data_train, name="train")
+    test_dataset = mlflow.data.from_pandas(data_test, name="test")
 
     # Get the feature matrix (X), target labels (y), and demographic data for both sets
     X_train, y_train, dem_train = split_data_from_df(data_train)
     X_test, y_test, dem_test = split_data_from_df(data_test)
     
     sample_weights = data_train["sample_weights"]
-    # Train the model using the sample weights calculated through reweighing
-    model = RidgeClassifier(random_state=config.random_state)    
-    model.fit(X_train, y_train, sample_weight=sample_weights.ravel())  # Fit model with sample weights
+    with mlflow.start_run():
+        # Train the model using the sample weights calculated through reweighing
+        model = RidgeClassifier(random_state=config.random_state)    
+        model.fit(X_train, y_train, sample_weight=sample_weights.ravel())  # Fit model with sample weights
 
-    y_pred_test = model.predict(X_test)
+        y_pred_test = model.predict(X_test)
 
-    # Define the groupings for fairness analysis (Black and White) in the test set
-    group_a_test = (dem_test['Ethnicity']=='Black')
-    group_b_test = (dem_test['Ethnicity']=='White')
+        # Define the groupings for fairness analysis (Black and White) in the test set
+        group_a_test = (dem_test['Ethnicity']=='Black')
+        group_b_test = (dem_test['Ethnicity']=='White')
 
-    # Get the fairness and accuracy metrics after applying reweighing
-    metrics_rw = get_metrics(group_a_test, group_b_test, y_pred_test, y_test)
-    print(metrics_rw)
+        # Get the fairness and accuracy metrics after applying reweighing
+        metrics_rw = get_metrics_classifier(group_a_test, group_b_test, y_pred_test, y_test)
+        print(metrics_rw)
+        
+        mlflow.log_param("model_type", "RidgeClassifier_SampleWeights")
+        model_info = mlflow.sklearn.log_model(sk_model=model, name="RidgeClassifier_SampleWeights", input_example=X_train)
+        mlflow.log_metrics(
+            metrics={
+                metric.Metric: metric.Value
+                for metric in metrics_rw.itertuples()
+            },
+            dataset=train_dataset,
+            model_id=model_info.model_id,
+        )
 
-    # Add a 'mitigation' column to both metrics dataframes to label them accordingly
-    metrics_orig['mitigation'] = 'None'
-    metrics_rw['mitigation'] = 'Reweighing'
+        # Add a 'mitigation' column to both metrics dataframes to label them accordingly
+        metrics_orig = pd.read_csv("metrics_accuracy.csv") # TODO: read as input Report artifact
+        metrics_orig['mitigation'] = 'None'
+        metrics_rw['mitigation'] = 'Reweighing'
 
-    metrics = pd.concat([metrics_orig, metrics_rw], axis=0, ignore_index=True)
-    print(metrics)
+        metrics = pd.concat([metrics_orig, metrics_rw], axis=0, ignore_index=True)
+        print(metrics)
+        compare_metrics(metrics)
 
-    # Plot the comparison of metrics between the original model and the model with reweighing
-    plt.figure(figsize=(10, 6))
-    sns.barplot(data=metrics, x='Metric', y='Value', hue='mitigation')
-    plt.axhline(y=0.8, linewidth=2, color='r', linestyle="--")
-    plt.axhline(y=-0.05, linewidth=2, color='r', linestyle="--")
-    plt.axhline(y=1, linewidth=2, color='g')
-    plt.axhline(y=0, linewidth=2, color='g')
-    plt.xticks(rotation=45, ha='right', fontsize=12)
-    plt.show()
+
 
 ############################################################## Explainability
 
