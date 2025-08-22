@@ -3,6 +3,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from fairness.holisticAI.src.data_preparation import *
 
+import requests
+import json
 
 def test_model_evaluation():
     model_name = "RidgeClassifier"
@@ -22,6 +24,54 @@ def test_model_evaluation():
     print(y_pred_new)
     
     
+def test_inference_mlflow_mlserver():
+    url = f"http://localhost:1234/invocations"
     
+    # prepare a validation dataset for prediction and predict
+    data = pd.read_parquet("data.parquet")
+    data_train, data_test = train_test_split(data, test_size=0.3, random_state=4)
+    X_test, y_test, dem_test = split_data_from_df(data_test)
+
+    payload = json.dumps(
+        {
+            "inputs": X_test.tolist(),
+        }
+    )
+    response = requests.post(
+        url=url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    print(response.json())
+    
+    
+def test_inference_kserve():
+    url = f"http://localhost:8080/v2/models/sklearn-hiring/infer"
+    
+    # prepare a validation dataset for prediction and predict
+    data = pd.read_parquet("data.parquet")
+    data_train, data_test = train_test_split(data, test_size=0.3, random_state=4)
+    X_test, y_test, dem_test = split_data_from_df(data_test)
+
+    
+    payload = json.dumps(
+        {
+        "inputs": [
+            {
+            "name": "input",
+            "shape": X_test.shape,
+            "datatype": "FP32",
+            "data": X_test.tolist()
+            }
+        ]}
+    )
+    response = requests.post(
+        url=url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    print(response)
+        
+
 if __name__ == "__main__":
-    test_model_evaluation()
+    test_inference_kserve()
