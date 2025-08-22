@@ -20,5 +20,7 @@ aix360
 lime
 
 # For deployment
-kserve
-mlflow
+kserve==0.15.2
+mlflow==3.2.0   #  mlflow[extras]  To deploy with MLServer
+mlserver==1.7.1
+mlserver_mlflow==1.7.1

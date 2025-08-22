@@ -22,6 +22,7 @@ sentence-transformers==2.7.0
 langchain
 langchain_community
 langchain_huggingface
+langchain_openai
 weaviate
 weaviate-client
 voyageai
@@ -30,7 +31,9 @@ faiss-gpu
 
 # RAG evaluation
 ragas
-
+spacy
+rank_llm
+flashrank
 
 # Agentic RAG
 langchain-mcp-adapters==0.1.9
