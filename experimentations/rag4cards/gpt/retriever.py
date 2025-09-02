@@ -29,4 +29,8 @@ class Retriever:
         retriever = vectordb.as_retriever()
         return retriever
     
+    def embedding_mpnet():
+        pass
+    
+    def embedding_
     
