@@ -1,8 +1,10 @@
 import pandas as pd
+from io import BytesIO
 from datetime import datetime
 
 from holisticai.bias.metrics import disparate_impact, statistical_parity, average_odds_diff
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
+from model_card_toolkit import ModelCardToolkit
 
 # visualization
 import matplotlib.pyplot as plt
@@ -37,3 +39,14 @@ def compare_metrics(metrics):
     # Save the figure
     plt.savefig(f"metrics_comparison_{now}.png", dpi=300, bbox_inches='tight')
     plt.close()
+        
+def plot_to_str():
+    img = BytesIO()
+    plt.savefig(img, format='png')
+    return base64.encodebytes(img.getvalue()).decode('utf-8')
+
+def generate_model_card():
+    # TODO
+    mct = ModelCardToolkit()
+    model_card = mct.scaffold_assets()
+    

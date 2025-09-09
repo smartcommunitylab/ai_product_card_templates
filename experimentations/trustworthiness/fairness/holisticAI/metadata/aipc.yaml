@@ -82,7 +82,7 @@ operations:
       framework: local
       spec:
         path: modelling.py
-        method_name: bias_mitigation_in_process_train
+        method_name: model_evaluation
         requirements: requirements.txt
         inputs:
           - 
@@ -167,8 +167,10 @@ artifacts:
       filepath: data_reweighed.parquet
   model:
     - name: model_fairness_unaware
+      version: latest
       path: fairness/holisticAI/models/model_no_fair.pickle
     - name: model_fairness_aware
+      version: 1
       path: ../models/model_fair.pickle
   configuration:
     - name: output_file
@@ -206,5 +208,11 @@ artifacts:
     - name: model_card_hiring
       filepath: cards/model_card.md
   function:
-    - name: model_deploy
+    - name: model_deploy_function
+      function_name: model_deploy
+      desc: "Deploy the model using kserve InferenceService"
       path: fairness/holisticAI/src/operationalization.py
+  service:
+    - name: model_deploy_service
+      port: 1234
+      namespace: kserve-test

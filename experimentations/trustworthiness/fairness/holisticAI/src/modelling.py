@@ -5,11 +5,12 @@ from holisticai.bias.metrics import disparate_impact,statistical_parity, average
 from interpret.blackbox import LimeTabular
 from interpret import show
 
-from artifact_types import Data, Configuration, Report
+from artifact_types import Data, Configuration, Report, Model
 from fairness.holisticAI.src.utils import *
 from fairness.holisticAI.src.data_preparation import *
 
-from sklearn.model_selection import train_test_split
+from scipy.stats import uniform
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.linear_model import RidgeClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
 
@@ -29,7 +30,10 @@ def train_model(data: Data, config: Configuration):
     # Get the feature matrix (X), target labels (y), and demographic data for both sets
     X_train, y_train, dem_train = split_data_from_df(data_train)
     X_test, y_test, dem_test = split_data_from_df(data_test)
-    with mlflow.start_run():
+    
+    # Set th experiment name
+    # mlflow.set_experiment("hiring_classification")
+    with mlflow.start_run(run_name="train_no_fairness"):
         
         # Define the model (RidgeClassifier) and train it on the training data
         model = RidgeClassifier(random_state=config.random_state)
@@ -49,7 +53,11 @@ def train_model(data: Data, config: Configuration):
         metrics_rw.to_csv("metrics_accuracy.csv")   
         
         mlflow.log_param("model_type", "RidgeClassifier")
-        model_info = mlflow.sklearn.log_model(sk_model=model, name="RidgeClassifier", input_example=X_train)
+        model_info = mlflow.sklearn.log_model(
+            sk_model=model, 
+            name="RidgeClassifier",
+            registered_model_name="RidgeClassifier",  
+            input_example=X_train)
         mlflow.log_metrics(
             metrics={
                 metric.Metric: metric.Value
@@ -58,11 +66,50 @@ def train_model(data: Data, config: Configuration):
             dataset=train_dataset,
             model_id=model_info.model_id,
         )
+        print(model_info.model_id)
 
         # Add the model's predictions to the data_test DataFrame for easier analysis
         data_test = data_test.copy()
         data_test['Pred'] = y_pred_test
         #TODO generate report to return from this method 
+        
+def hyperparameters_optimization(data: Data, config: Configuration):
+    lr = ElasticNet()
+
+    # Define distribution to pick parameter values from
+    distributions = dict(
+        alpha=uniform(loc=0, scale=10),  # sample alpha uniformly from [-5.0, 5.0]
+        l1_ratio=uniform(),  # sample l1_ratio uniformlyfrom [0, 1.0]
+    )
+
+    # Initialize random search instance
+    clf = RandomizedSearchCV(
+        estimator=lr,
+        param_distributions=distributions,
+        # Optimize for mean absolute error
+        scoring="neg_mean_absolute_error",
+        # Use 5-fold cross validation
+        cv=5,
+        # Try 100 samples. Note that MLflow only logs the top 5 runs.
+        n_iter=100,
+    )
+
+    # Start a parent run
+    with mlflow.start_run(run_name="hyperparameter-tuning"):
+        search = clf.fit(X_train, y_train)
+
+        # Evaluate the best model on test dataset
+        y_pred = clf.best_estimator_.predict(X_test)
+        rmse, mae, r2 = eval_metrics(clf.best_estimator_, y_pred, y_test)
+        mlflow.log_metrics(
+            {
+                "mean_squared_error_X_test": rmse,
+                "mean_absolute_error_X_test": mae,
+                "r2_score_X_test": r2,
+            }
+        )
+
+
 
 ############################################################## Evaluations - Performance metrics - Accuracy
 
@@ -126,11 +173,22 @@ def calculate_tpr(cms):
 
 ############################################################## Accuracy and fairness evaluation metrics
 
+def model_evaluation(data: Data, config: Configuration, model: Model):
+    model_name = model.name
+    model_version = model.vesion
 
+    # Load the model from the Model Registry
+    model_uri = f"models:/{model_name}/{model_version}"
+    model = mlflow.sklearn.load_model(f"models:/{model_name}/{model_version}")    
+    
+    # prepare a validation dataset for prediction and predict
+    data = data.get_dataset()
+    y_pred_new = model.predict(data)
+    # TODO compare metrics and generate report (csv/json)
 
 ############################################################## Bias Mitigation techniques
 
-def bias_mitigation_in_process_train(data: Data, config: Configuration, ):
+def bias_mitigation_in_process_train(data: Data, config: Configuration, report: Report):
     data = data.get_dataset()   
     # Split the data into training and testing sets (70% training, 30% testing)
     data_train, data_test = train_test_split(data, test_size=config.test_size, random_state=config.random_state)
@@ -158,7 +216,11 @@ def bias_mitigation_in_process_train(data: Data, config: Configuration, ):
         print(metrics_rw)
         
         mlflow.log_param("model_type", "RidgeClassifier_SampleWeights")
-        model_info = mlflow.sklearn.log_model(sk_model=model, name="RidgeClassifier_SampleWeights", input_example=X_train)
+        model_info = mlflow.sklearn.log_model(
+            sk_model=model, 
+            name="RidgeClassifier_SampleWeights",
+            registered_model_name="RidgeClassifier_SampleWeights",  
+            input_example=X_train)
         mlflow.log_metrics(
             metrics={
                 metric.Metric: metric.Value

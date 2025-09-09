@@ -14,7 +14,7 @@ import holisticai
 from holisticai.bias.metrics import disparate_impact,statistical_parity, average_odds_diff
 from holisticai.bias.mitigation import EqualizedOdds
 
-
+"""
 class CustomModel(Model):
     def __init__(self, name: str, model_path: str):
         super().__init__(name)
@@ -40,7 +40,7 @@ class CustomModel(Model):
         data = np.array(inputs["instances"])
         predictions = self.model.predict(data)
         return {"predictions": predictions.tolist()}
-
+"""
 
 def model_deployment(config: Configuration):
     model_name = config.name
@@ -147,7 +147,7 @@ def inference(config: Configuration, data: Data):
     base_url = config.endpoint
     data = {"instances": data}
     model_name = "sklearn-hiring"
-    result = await client.infer(base_url, data, model_name=model_name)
+    result =  client.infer(base_url, data, model_name=model_name) # await
     print(result)
 
 
